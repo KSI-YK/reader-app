@@ -46,35 +46,41 @@
       reader.onload = async function() {
         const base64Image = reader.result.split(',')[1];
         
-        const apiKey = 'AIzaSyDSrc1nawlEU8GZnhxGBqiFIaJdnd8BgUk';
-        const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
-          method: 'POST',
-          body: JSON.stringify({
-            requests: [
-              {
-                image: { content: base64Image },
-                features: [{ type: "TEXT_DETECTION" }]
-              }
-            ]
-          }),
-          headers: { 'Content-Type': 'application/json' }
-        });
+        const apiKey = 'AIzaSyDSrc1nawlEU8GZnhxGBqiFIaJdnd8BgUk';  // ←忘れず差し替えてください
+        try {
+          const response = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+            method: 'POST',
+            body: JSON.stringify({
+              requests: [
+                {
+                  image: { content: base64Image },
+                  features: [{ type: "TEXT_DETECTION" }]
+                }
+              ]
+            }),
+            headers: { 'Content-Type': 'application/json' }
+          });
 
-        const data = await response.json();
-        const text = data.responses[0].fullTextAnnotation ? data.responses[0].fullTextAnnotation.text : '';
+          const data = await response.json();
+          const annotation = data.responses?.[0]?.fullTextAnnotation;
+          if (!annotation || !annotation.text) {
+            resultDiv.innerHTML = "<p>文字が検出できませんでした。（通信成功）</p>";
+            return;
+          }
 
-        if (!text) {
-          resultDiv.innerHTML = "<p>文字が検出できませんでした。</p>";
-          return;
+          const text = annotation.text;
+          let highlightedText = text;
+          keywords.forEach(word => {
+            const regex = new RegExp(`(${word})`, 'gi');
+            highlightedText = highlightedText.replace(regex, '<mark>$1</mark>');
+          });
+
+          resultDiv.innerHTML = `<h3>OCR結果:</h3><p>${highlightedText.replace(/\n/g, '<br>')}</p>`;
+
+        } catch (error) {
+          console.error(error);
+          resultDiv.innerHTML = "<p>エラーが発生しました。ネットワーク接続やAPIキー設定を確認してください。</p>";
         }
-
-        let highlightedText = text;
-        keywords.forEach(word => {
-          const regex = new RegExp(`(${word})`, 'gi');
-          highlightedText = highlightedText.replace(regex, '<mark>$1</mark>');
-        });
-
-        resultDiv.innerHTML = `<h3>OCR結果:</h3><p>${highlightedText.replace(/\n/g, '<br>')}</p>`;
       };
 
       reader.readAsDataURL(file);
